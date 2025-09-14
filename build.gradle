@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.9'
+    id 'net.ltgt.errorprone' version '4.3.0'
     id 'com.gtnewhorizons.retrofuturagradle' version '1.4.1'
 }
 
@@ -28,6 +29,10 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     sourceCompatibility = 8
     targetCompatibility = 8
+
+    ['AndroidInjectionBeforeSuper', 'DaggerProvidesNull', 'FloggerFormatString', 'FloggerLogString', 'FloggerLogVarargs', 'FloggerSplitLogVarargs', ].forEach {
+        options.errorprone.disable(it)
+    }
 }
 
 minecraft {
@@ -55,7 +60,9 @@ repositories {
 }
 
 dependencies {
-    compileOnlyApi 'org.jetbrains:annotations:26.0.2-1'
+    compileOnlyApi "org.jetbrains:annotations:$project.annotations_version"
+    compileOnlyApi "com.google.errorprone:error_prone_annotations:$project.error_prone_version"
+    errorprone "com.google.errorprone:error_prone_core:$project.error_prone_version"
 }
 
 apply from: 'dependencies.gradle'
