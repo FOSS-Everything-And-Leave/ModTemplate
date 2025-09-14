@@ -1,0 +1,9 @@
+repositories {
+    maven {
+        name 'CurseMaven'
+        url 'https://curse.cleanroommc.com'
+    }
+}
+
+dependencies {
+}

@@ -1,0 +1,118 @@
+plugins {
+    id 'java'
+    id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.9'
+    id 'com.gtnewhorizons.retrofuturagradle' version '1.4.1'
+}
+
+propertyCheck("mod_id")
+propertyCheck("mod_name", project.mod_id)
+propertyCheck("mod_version")
+
+propertyCheck("maven_group", "foss")
+propertyCheck("archive_name", project.mod_name.replace(' ', ''))
+
+group = project.maven_group
+version = project.mod_version
+
+base {
+    archivesName = project.archive_name
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(8))
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = 8
+    targetCompatibility = 8
+}
+
+minecraft {
+    mcVersion = '1.12.2'
+    mcpMappingChannel = 'stable'
+    mcpMappingVersion = '39'
+    extraRunJvmArguments.add("-ea:$group")
+    if (!project.plugin_class.isEmpty()) {
+        extraRunJvmArguments.add(project.plugin_class)
+    }
+    if (!project.runtime_jvmargs.isEmpty()) {
+        extraRunJvmArguments.addAll(project.runtime_jvmargs.split(' '))
+    }
+    injectedTags.put('MOD_ID', project.mod_id)
+    injectedTags.put('MOD_NAME', project.mod_name)
+    injectedTags.put('MOD_VERSION', project.mod_version)
+}
+
+tasks.injectTags.configure {
+    it.outputClassName.set("${project.maven_group}.${project.mod_id}.Reference")
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnlyApi 'org.jetbrains:annotations:26.0.2-1'
+}
+
+apply from: 'dependencies.gradle'
+
+jar {
+    manifest {
+        def attr = [:]
+        attr['ForceLoadAsMod'] = project.gradle.startParameter.taskNames[0] == 'build'
+        if (!project.plugin_class.isEmpty()) {
+            attr['FMLCorePlugin'] = project.plugin_class
+            attr['FMLCorePluginContainsFMLMod'] = true
+        }
+        attributes(attr)
+    }
+}
+
+processResources {
+    inputs.property 'mod_id', project.mod_id
+    inputs.property 'mod_name', project.mod_name
+    inputs.property 'mod_version', project.mod_version
+    inputs.property 'mod_description', project.mod_description
+    inputs.property 'mod_url', project.mod_url
+    inputs.property 'mod_authors', getAuthors(project.mod_authors)
+    inputs.property 'mod_credits', project.mod_credits
+    filesMatching(['mcmod.info', 'pack.mcmeta']) {
+        it.expand(
+                'mod_id' : project.mod_id,
+                'mod_name' : project.mod_name,
+                'mod_version' : project.mod_version,
+                'mod_description' : project.mod_description,
+                'mod_url' : project.mod_url,
+                'mod_authors' : getAuthors(project.mod_authors),
+                'mod_credits' : project.mod_credits
+        )
+    }
+}
+
+idea.project.settings {
+    taskTriggers {
+        afterSync tasks.named("injectTags")
+    }
+}
+
+static def getAuthors(String authors) {
+    def list = authors.replace(' ', '').split(',')
+    StringBuilder builder = new StringBuilder()
+    for (int i = 0; i < list.size(); i++) {
+        if (i != 0) builder.append(', ')
+        builder.append("\"${list[i]}\"")
+    }
+    return builder.toString()
+}
+
+def propertyCheck(String property) {
+    if (!project.hasProperty(property) || project.property(property).toString().isEmpty()) throw new NullPointerException("$property is not set")
+}
+
+def propertyCheck(String property, String defValue) {
+    if (!project.hasProperty(property) || project.property(property).toString().isEmpty()) project.setProperty(property, defValue)
+}
