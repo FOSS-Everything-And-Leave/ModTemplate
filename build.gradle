@@ -1,8 +1,11 @@
+import org.apache.commons.io.FileUtils
+import java.nio.file.Files
+
 plugins {
     id 'java'
     id 'org.jetbrains.gradle.plugin.idea-ext' version '1.1.9'
     id 'net.ltgt.errorprone' version '4.3.0'
-    id 'com.gtnewhorizons.retrofuturagradle' version '1.4.1'
+    id 'xyz.wagyourtail.unimined' version '1.4.1'
 }
 
 propertyCheck("mod_id")
@@ -21,47 +24,62 @@ base {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion = JavaLanguageVersion.of(21)
     }
+    withSourcesJar()
+    withJavadocJar()
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    sourceCompatibility = 8
-    targetCompatibility = 8
-
-    ['AndroidInjectionBeforeSuper', 'DaggerProvidesNull', 'FloggerFormatString', 'FloggerLogString', 'FloggerLogVarargs', 'FloggerSplitLogVarargs', ].forEach {
-        options.errorprone.disable(it)
-    }
+    sourceCompatibility = 21
+    targetCompatibility = 21
 }
 
-minecraft {
-    mcVersion = '1.12.2'
-    mcpMappingChannel = 'stable'
-    mcpMappingVersion = '39'
-    extraRunJvmArguments.add("-ea:$group")
-    if (!project.plugin_class.isEmpty()) {
-        extraRunJvmArguments.add(project.plugin_class)
+sourceSets {
+    injected {
+        java.srcDirs(new File(project.buildDir, "injected"))
     }
-    if (!project.runtime_jvmargs.isEmpty()) {
-        extraRunJvmArguments.addAll(project.runtime_jvmargs.split(' '))
+    main {
+        compileClasspath += injected.output
+        runtimeClasspath += injected.output
     }
-    injectedTags.put('MOD_ID', project.mod_id)
-    injectedTags.put('MOD_NAME', project.mod_name)
-    injectedTags.put('MOD_VERSION', project.mod_version)
-}
-
-tasks.injectTags.configure {
-    it.outputClassName.set("${project.maven_group}.${project.mod_id}.Reference")
 }
 
 repositories {
+    maven {
+        name = "wagyourtail releases"
+        url = "https://maven.wagyourtail.xyz/releases"
+    }
     mavenCentral()
 }
 
+unimined.minecraft {
+    version '1.12.2'
+
+    mappings {
+        mcp('stable', '39-1.12')
+    }
+
+    cleanroom {
+        loader project.cleanroom_version
+    }
+
+    def jvms = ["-ea:$group"]
+    if (!project.plugin_class.isEmpty()) {
+        jvms << "-Dfml.coreMods.load=$project.plugin_class"
+    }
+    if (!project.runtime_jvmargs.isEmpty()) {
+        jvms.addAll(project.runtime_jvmargs.split(' '))
+    }
+    runs.all {
+        jvmArgs(jvms)
+    }
+}
+
 dependencies {
-    compileOnlyApi "org.jetbrains:annotations:$project.annotations_version"
-    compileOnlyApi "com.google.errorprone:error_prone_annotations:$project.error_prone_version"
+    compileOnly "org.jetbrains:annotations:$project.annotations_version"
+    compileOnly "com.google.errorprone:error_prone_annotations:$project.error_prone_version"
     errorprone "com.google.errorprone:error_prone_core:$project.error_prone_version"
 }
 
@@ -98,6 +116,28 @@ processResources {
                 'mod_credits' : project.mod_credits
         )
     }
+}
+
+tasks.register("injectTags") {
+    File injected = new File(project.buildDir, "injected")
+    File file = new File(injected, "${project.maven_group}/${project.mod_id}/Reference.java")
+    if (file.exists()) {
+        return
+    }
+    else if (injected.exists()) {
+        FileUtils.deleteDirectory(injected)
+    }
+    file.getParentFile().mkdirs()
+    String str = """package ${project.maven_group}.${project.mod_id};
+
+public class Reference {
+
+    public static final String MOD_ID = \"${project.mod_id}\";
+    public static final String MOD_NAME = \"${project.mod_name}\";
+    public static final String MOD_VERSION = \"${project.mod_version}\";
+}
+"""
+    Files.write(file.toPath(), str.bytes)
 }
 
 idea.project.settings {
