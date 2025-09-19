@@ -146,6 +146,8 @@ idea.project.settings {
     }
 }
 
+tasks.build.dependsOn(injectTags)
+
 static def getAuthors(String authors) {
     def list = authors.replace(' ', '').split(',')
     StringBuilder builder = new StringBuilder()
