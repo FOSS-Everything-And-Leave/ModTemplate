@@ -67,7 +67,7 @@ unimined.minecraft {
 
     def jvms = ["-ea:$group"]
     if (!project.plugin_class.isEmpty()) {
-        jvms << "-Dfml.coreMods.load=$project.plugin_class"
+        jvms << "-Dfml.coreMods.load=${project.maven_group}.${project.mod_id}.core.$project.plugin_class"
     }
     if (!project.runtime_jvmargs.isEmpty()) {
         jvms.addAll(project.runtime_jvmargs.split(' '))
@@ -90,7 +90,7 @@ jar {
         def attr = [:]
         attr['ForceLoadAsMod'] = project.gradle.startParameter.taskNames[0] == 'build'
         if (!project.plugin_class.isEmpty()) {
-            attr['FMLCorePlugin'] = project.plugin_class
+            attr['FMLCorePlugin'] = "${project.maven_group}.${project.mod_id}.core.$project.plugin_class"
             attr['FMLCorePluginContainsFMLMod'] = true
         }
         attributes(attr)
